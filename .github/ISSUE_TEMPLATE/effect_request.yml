@@ -1,0 +1,39 @@
+name: "✨ Request a cursor, trail or click effect"
+description: Describe the effect you want. If it gets built, it ships with your name on its card in the studio and in CREDITS.md.
+title: "[Request] "
+labels: ["request"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Cursor model (replaces the pointer)
+        - Movement trail (emitted while moving)
+        - Click effect (bursts on click)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      placeholder: "e.g. Paper plane, Lightning strike, Koi fish, Lightsaber"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What should it look like, move like and sound like?
+      description: Be specific. Real-world references help ("like a stone dropped in a pond", "like a Zippo lighter clicking").
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: Reference links or images (optional)
+  - type: input
+    id: credit
+    attributes:
+      label: Credit name
+      description: How you want to be credited (GitHub, Reddit or any name). Leave blank to stay anonymous.

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CursorFX</title>
+  <style>
+    body { width: 260px; margin: 0; padding: 14px; font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; background: #10131f; color: #e8ecff; }
+    h1 { font-size: 15px; margin: 0 0 10px; }
+    label { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; margin: 8px 0; }
+    select { width: 100%; padding: 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: #1b2033; color: inherit; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .note { font-size: 11px; color: #9aa3c7; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🏎️ CursorFX</h1>
+  <div class="row"><span>Enabled</span><input id="enabled" type="checkbox"></div>
+  <label>Cursor <select id="cursor"></select></label>
+  <label>Trail <select id="trail"></select></label>
+  <label>Click <select id="click"></select></label>
+  <div class="row"><span>Sound</span><input id="sound" type="checkbox"></div>
+  <p class="note">Changes apply to open pages immediately. Sound starts after your first click on a page.</p>
+  <script src="cursorfx.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

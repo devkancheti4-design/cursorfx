@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CursorFX Studio</title>
+  <meta name="description" content="Mix and match custom cursors, movement trails and click effects with optional sound. Copy one line to use it on your own site.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="stage">
+    <div class="hero">
+      <p class="eyebrow">CursorFX</p>
+      <h1>Your cursor, but <span class="grad">alive</span>.</h1>
+      <p class="lede">Pick a cursor model, a movement trail and a click effect. Move around, click anywhere, then copy one line to put it on your own site.</p>
+      <div class="actions">
+        <a class="btn primary" href="#" data-cursor="pointer">Hover me</a>
+        <button class="btn" type="button">Or me</button>
+        <a class="btn ghost" href="https://github.com/devkancheti4-design/cursorfx" target="_blank" rel="noopener">Star on GitHub</a>
+      </div>
+      <div id="meta" class="meta" hidden><span id="kmh">0</span><small>km/h</small><span id="gear" class="gear">N</span></div>
+    </div>
+    <p class="hint" id="hint">Click anywhere on the page for the click effect. Press <kbd>H</kbd> to hide the panel.</p>
+  </main>
+
+  <button id="toggle" class="toggle" type="button" data-cursorfx-ignore aria-expanded="true" aria-controls="panel">Studio</button>
+
+  <aside id="panel" class="panel" data-cursorfx-ignore aria-label="CursorFX settings">
+    <header class="panel-head">
+      <h2>Studio</h2>
+      <label class="switch"><input id="sound" type="checkbox"><span>Sound</span></label>
+    </header>
+    <section class="presets">
+      <div class="row-title">Presets</div>
+      <div id="presets" class="chips"></div>
+    </section>
+    <section>
+      <div class="row-title">Cursor <button id="rand-cursor" class="mini" type="button">shuffle</button></div>
+      <div id="cursors" class="grid"></div>
+    </section>
+    <section>
+      <div class="row-title">Trail <button id="rand-trail" class="mini" type="button">shuffle</button></div>
+      <div id="trails" class="grid"></div>
+    </section>
+    <section>
+      <div class="row-title">Click effect <button id="rand-click" class="mini" type="button">shuffle</button></div>
+      <div id="clicks" class="grid"></div>
+    </section>
+    <section>
+      <div class="row-title">Options</div>
+      <div id="options" class="options"></div>
+    </section>
+    <section>
+      <div class="row-title">Download</div>
+      <div class="chips">
+        <a class="chip" href="dist/cursorfx.js" download>⬇︎ cursorfx.js</a>
+        <a class="chip" href="dist/cursorfx-extension.zip" download>⬇︎ Browser extension (zip)</a>
+        <a class="chip" href="https://github.com/devkancheti4-design/cursorfx" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </section>
+    <section>
+      <div class="row-title">Use it on your site <button id="copy" class="mini" type="button">copy</button></div>
+      <pre id="embed" class="embed"></pre>
+    </section>
+    <footer class="panel-foot">
+      <button id="random" class="btn small" type="button">Surprise me</button>
+      <button id="reset" class="btn small ghost" type="button">Reset</button>
+    </footer>
+  </aside>
+
+  <script src="dist/cursorfx.js"></script>
+  <script src="studio.js"></script>
+</body>
+</html>

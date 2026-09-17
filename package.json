@@ -1,0 +1,17 @@
+{
+  "name": "cursorfx",
+  "version": "0.1.0",
+  "description": "Custom cursors, movement trails and click effects for any website. Plugin-based, zero dependencies, optional synthesised sound.",
+  "main": "dist/cursorfx.js",
+  "browser": "dist/cursorfx.js",
+  "unpkg": "dist/cursorfx.js",
+  "jsdelivr": "dist/cursorfx.js",
+  "files": ["dist", "src", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "sh build.sh",
+    "start": "python3 -m http.server 8765"
+  },
+  "keywords": ["cursor", "custom-cursor", "cursor-effects", "mouse-trail", "click-effect", "particles", "canvas", "butterflies", "fireworks", "f1"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/devkancheti4-design/cursorfx" }
+}
