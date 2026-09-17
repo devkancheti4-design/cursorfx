@@ -2,6 +2,7 @@
 // plugins over the whole system (desktop, every app), driven by the global mouse position.
 import Cocoa
 import WebKit
+import SwiftUI
 
 // Private window-server calls that let a background app hide the system cursor (used by cursor-hiding utilities).
 @_silgen_name("_CGSDefaultConnection") func _CGSDefaultConnection() -> Int32
@@ -87,17 +88,105 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     func close() { window.orderOut(nil); window.close() }
 }
 
+struct PluginItem: Identifiable, Hashable {
+    let name: String, label: String, icon: String
+    var id: String { name }
+}
+
+final class Model: ObservableObject {
+    @Published var enabled = true { didSet { changed() } }
+    @Published var sound = true { didSet { changed() } }
+    @Published var scale = 0.5 { didSet { changed() } }
+    @Published var cursor = "f1car" { didSet { changed() } }
+    @Published var trail = "" { didSet { changed() } }
+    @Published var click = "gunshot" { didSet { changed() } }
+    @Published var hideCursor = true { didSet { changed() } }
+    @Published var lists: [String: [PluginItem]] = [:]
+    var suppress = false
+    var onChange: (() -> Void)?
+    func changed() { if !suppress { onChange?() } }
+    func selected(_ kind: String) -> String { kind == "cursor" ? cursor : kind == "trail" ? trail : click }
+    func select(_ kind: String, _ name: String) {
+        switch kind { case "cursor": cursor = name; case "trail": trail = name; default: click = name }
+    }
+}
+
+struct Chip: View {
+    let icon: String, label: String, selected: Bool, action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Text(icon).font(.system(size: 20))
+                Text(label).font(.system(size: 9, weight: .medium)).lineLimit(1).truncationMode(.tail)
+            }
+            .frame(width: 58, height: 50)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(selected ? Color.accentColor.opacity(0.9) : Color.primary.opacity(0.08)))
+            .foregroundStyle(selected ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct WidgetView: View {
+    @ObservedObject var model: Model
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("🏎️ CursorFX").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Toggle("", isOn: $model.enabled).toggleStyle(.switch).labelsHidden()
+            }
+            Group {
+                strip("Cursor", kind: "cursor")
+                strip("Trail", kind: "trail")
+                strip("Click", kind: "click")
+            }
+            .opacity(model.enabled ? 1 : 0.4)
+            .disabled(!model.enabled)
+            HStack(spacing: 8) {
+                Image(systemName: "cursorarrow").font(.system(size: 11)).foregroundStyle(.secondary)
+                Slider(value: $model.scale, in: 0.25...1.25)
+                Image(systemName: "cursorarrow").font(.system(size: 18)).foregroundStyle(.secondary)
+            }
+            .opacity(model.enabled ? 1 : 0.4)
+            .disabled(!model.enabled)
+            HStack {
+                Toggle("Sound", isOn: $model.sound).toggleStyle(.switch).font(.system(size: 12))
+                Toggle("Hide arrow", isOn: $model.hideCursor).toggleStyle(.switch).font(.system(size: 12))
+                Spacer()
+                Button("Quit") { NSApp.terminate(nil) }.font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(width: 330)
+    }
+
+    func strip(_ title: String, kind: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title.uppercased()).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).kerning(1)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 7) {
+                    Chip(icon: "∅", label: "Off", selected: model.selected(kind).isEmpty) { model.select(kind, "") }
+                    ForEach(model.lists[kind] ?? []) { item in
+                        Chip(icon: item.icon, label: item.label, selected: model.selected(kind) == item.name) { model.select(kind, item.name) }
+                    }
+                }
+                .padding(.horizontal, 1)
+            }
+        }
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var overlays: [Overlay] = []
     var current: Overlay?
     var statusItem: NSStatusItem!
+    var popover: NSPopover!
     var timer: Timer?
     var lastDown = false
     var lastX = -1.0, lastY = -1.0
-    var lists: [String: [[String: Any]]] = [:]
-    var config: [String: Any] = ["cursor": "f1car", "trail": NSNull(), "click": "gunshot", "sound": true, "cursorScale": 0.5]
-    let sizes: [(String, Double)] = [("Small", 0.35), ("Medium", 0.5), ("Large", 0.75), ("Full", 1.0)]
-    var cursorHidden = true
+    let model = Model()
     let hider = CursorHider()
     let defaults = UserDefaults.standard
     var reassertTick = 0
@@ -107,24 +196,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.accessory)
         log("launch; resources=\(resources.path)")
-        if let raw = defaults.string(forKey: "config"), let d = raw.data(using: .utf8),
-           let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] { config = obj }
-        if config["cursorScale"] == nil { config["cursorScale"] = 0.5 }
-        cursorHidden = defaults.object(forKey: "hideCursor") == nil ? true : defaults.bool(forKey: "hideCursor")
+        loadSettings()
+        model.onChange = { [weak self] in self?.apply() }
         buildOverlays()
         buildStatusItem()
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in self?.buildOverlays() }
-        hider.wanted = cursorHidden
-        if cursorHidden { hider.hide() }
-        log("cursor hidden: \(cursorHidden), visible now: \(cgCursorIsVisible())")
+        applyCursorVisibility()
+        log("cursor hidden: \(model.hideCursor && model.enabled), visible now: \(cgCursorIsVisible())")
+        if ProcessInfo.processInfo.environment["CURSORFX_SHOW_WIDGET"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.togglePopover() }
+        }
     }
 
     func applicationWillTerminate(_ n: Notification) {
         hider.wanted = false
         hider.show()
+    }
+
+    func loadSettings() {
+        model.suppress = true
+        if let raw = defaults.string(forKey: "config"), let d = raw.data(using: .utf8),
+           let c = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
+            model.cursor = c["cursor"] as? String ?? ""
+            model.trail = c["trail"] as? String ?? ""
+            model.click = c["click"] as? String ?? ""
+            model.sound = c["sound"] as? Bool ?? true
+            model.scale = (c["cursorScale"] as? NSNumber)?.doubleValue ?? 0.5
+            model.enabled = c["enabled"] as? Bool ?? true
+        }
+        model.hideCursor = defaults.object(forKey: "hideCursor") == nil ? true : defaults.bool(forKey: "hideCursor")
+        model.suppress = false
+    }
+
+    func configJSON() -> String {
+        let c: [String: Any] = [
+            "cursor": model.cursor.isEmpty ? NSNull() : model.cursor,
+            "trail": model.trail.isEmpty ? NSNull() : model.trail,
+            "click": model.click.isEmpty ? NSNull() : model.click,
+            "sound": model.sound, "cursorScale": model.scale, "enabled": model.enabled,
+        ]
+        let d = try? JSONSerialization.data(withJSONObject: c)
+        return String(data: d ?? Data("{}".utf8), encoding: .utf8) ?? "{}"
     }
 
     func buildOverlays() {
@@ -134,17 +249,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ov.onReady = { [weak self, weak ov] in
                 guard let self = self, let ov = ov else { return }
                 ov.send("__native.set(\(self.configJSON()))")
-                if self.lists.isEmpty { self.fetchLists(from: ov) }
+                if self.model.lists.isEmpty { self.fetchLists(from: ov) }
             }
             return ov
         }
         current = nil
+        if !model.enabled { overlays.forEach { $0.window.orderOut(nil) } }
         log("overlays: \(overlays.count)")
-    }
-
-    func configJSON() -> String {
-        let d = try? JSONSerialization.data(withJSONObject: config)
-        return String(data: d ?? Data("{}".utf8), encoding: .utf8) ?? "{}"
     }
 
     func fetchLists(from ov: Overlay) {
@@ -153,13 +264,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   let obj = try? JSONSerialization.jsonObject(with: d) as? [String: [[String: Any]]] else {
                 log("lists failed: \(String(describing: err))"); return
             }
-            self.lists = obj
-            self.buildMenu()
-            log("lists: cursor=\(obj["cursor"]?.count ?? 0) trail=\(obj["trail"]?.count ?? 0) click=\(obj["click"]?.count ?? 0)")
+            var lists: [String: [PluginItem]] = [:]
+            for (kind, items) in obj {
+                lists[kind] = items.map { PluginItem(name: $0["name"] as? String ?? "", label: $0["label"] as? String ?? "", icon: $0["icon"] as? String ?? "") }
+            }
+            self.model.lists = lists
+            log("lists: cursor=\(lists["cursor"]?.count ?? 0) trail=\(lists["trail"]?.count ?? 0) click=\(lists["click"]?.count ?? 0)")
         }
     }
 
     func tick() {
+        guard model.enabled else { return }
         reassertTick += 1
         if reassertTick % 30 == 0 { hider.reassert() }
         let loc = NSEvent.mouseLocation
@@ -177,90 +292,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "🏎️"
-        buildMenu()
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(togglePopover)
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = NSSize(width: 330, height: 400)
+        popover.contentViewController = NSHostingController(rootView: WidgetView(model: model))
     }
 
-    func buildMenu() {
-        let menu = NSMenu()
-        let header = NSMenuItem(title: "CursorFX Desktop", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        menu.addItem(header)
-        for (kind, title) in [("cursor", "Cursor"), ("trail", "Trail"), ("click", "Click effect")] {
-            let sub = NSMenu()
-            let none = NSMenuItem(title: "None", action: #selector(pick(_:)), keyEquivalent: "")
-            none.target = self
-            none.representedObject = ["kind": kind, "name": ""]
-            none.state = (config[kind] as? String ?? "").isEmpty ? .on : .off
-            sub.addItem(none)
-            for item in lists[kind] ?? [] {
-                let name = item["name"] as? String ?? ""
-                let label = "\(item["icon"] as? String ?? "") \(item["label"] as? String ?? name)"
-                let mi = NSMenuItem(title: label, action: #selector(pick(_:)), keyEquivalent: "")
-                mi.target = self
-                mi.representedObject = ["kind": kind, "name": name]
-                mi.state = (config[kind] as? String) == name ? .on : .off
-                sub.addItem(mi)
-            }
-            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            parent.submenu = sub
-            menu.addItem(parent)
-        }
-        let sizeMenu = NSMenu()
-        let currentScale = (config["cursorScale"] as? NSNumber)?.doubleValue ?? 0.5
-        for (label, s) in sizes {
-            let mi = NSMenuItem(title: label, action: #selector(pickSize(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.representedObject = NSNumber(value: s)
-            mi.state = abs(currentScale - s) < 0.01 ? .on : .off
-            sizeMenu.addItem(mi)
-        }
-        let sizeParent = NSMenuItem(title: "Cursor size", action: nil, keyEquivalent: "")
-        sizeParent.submenu = sizeMenu
-        menu.addItem(sizeParent)
-        menu.addItem(.separator())
-        let sound = NSMenuItem(title: "Sound", action: #selector(toggleSound), keyEquivalent: "")
-        sound.target = self
-        sound.state = (config["sound"] as? Bool ?? false) ? .on : .off
-        menu.addItem(sound)
-        let hide = NSMenuItem(title: "Hide system cursor", action: #selector(toggleCursor), keyEquivalent: "")
-        hide.target = self
-        hide.state = cursorHidden ? .on : .off
-        menu.addItem(hide)
-        menu.addItem(.separator())
-        let studio = NSMenuItem(title: "Open web studio", action: #selector(openStudio), keyEquivalent: "")
-        studio.target = self
-        menu.addItem(studio)
-        let quit = NSMenuItem(title: "Quit CursorFX", action: #selector(quitApp), keyEquivalent: "q")
-        quit.target = self
-        menu.addItem(quit)
-        statusItem.menu = menu
+    @objc func togglePopover() {
+        guard let button = statusItem.button else { return }
+        if popover.isShown { popover.performClose(nil); return }
+        NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    @objc func pick(_ sender: NSMenuItem) {
-        guard let info = sender.representedObject as? [String: String], let kind = info["kind"] else { return }
-        let name = info["name"] ?? ""
-        config[kind] = name.isEmpty ? NSNull() : name
-        apply()
+    func applyCursorVisibility() {
+        let hide = model.hideCursor && model.enabled
+        hider.wanted = hide
+        if hide { hider.hide() } else { hider.show() }
+        defaults.set(model.hideCursor, forKey: "hideCursor")
     }
-    @objc func pickSize(_ sender: NSMenuItem) {
-        config["cursorScale"] = (sender.representedObject as? NSNumber)?.doubleValue ?? 0.5
-        apply()
-    }
-    @objc func toggleSound() { config["sound"] = !(config["sound"] as? Bool ?? false); apply() }
-    @objc func toggleCursor() {
-        cursorHidden.toggle()
-        hider.wanted = cursorHidden
-        if cursorHidden { hider.hide() } else { hider.show() }
-        defaults.set(cursorHidden, forKey: "hideCursor")
-        buildMenu()
-    }
-    @objc func openStudio() { NSWorkspace.shared.open(URL(string: "https://devkancheti4-design.github.io/cursorfx/")!) }
-    @objc func quitApp() { NSApp.terminate(nil) }
 
     func apply() {
         defaults.set(configJSON(), forKey: "config")
-        overlays.forEach { $0.send("__native.set(\(configJSON()))") }
-        buildMenu()
+        overlays.forEach { ov in
+            if model.enabled { ov.window.orderFrontRegardless() } else { ov.window.orderOut(nil) }
+            ov.send("__native.set(\(configJSON()))")
+        }
+        applyCursorVisibility()
         log("apply \(configJSON())")
     }
 }
