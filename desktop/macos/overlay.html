@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>html, body { margin: 0; background: transparent; overflow: hidden; width: 100vw; height: 100vh; }</style>
+</head>
+<body>
+  <script src="cursorfx.js"></script>
+  <script>
+    (function () {
+      const post = (m) => { try { window.webkit.messageHandlers.native.postMessage(String(m)); } catch (e) {} };
+      const ev = (type, x, y) => new PointerEvent(type, { clientX: x, clientY: y, bubbles: true, pointerType: 'mouse' });
+      window.__native = {
+        move(x, y) { window.dispatchEvent(ev('pointermove', x, y)); },
+        down(x, y) { window.dispatchEvent(ev('pointerdown', x, y)); },
+        up(x, y) { window.dispatchEvent(ev('pointerup', x, y)); },
+        leave() { CursorFX.state.inside = false; },
+        set(cfg) {
+          CursorFX.set(cfg);
+          if (cfg.sound) { CursorFX.audio.unlock(); setTimeout(() => post('audio ' + (CursorFX.audio.ctx ? CursorFX.audio.ctx.state : 'none')), 500); }
+          post('set ' + JSON.stringify(cfg));
+        },
+        lists() { return JSON.stringify(CursorFX.list()); },
+      };
+      window.addEventListener('error', (e) => post('error ' + e.message));
+      CursorFX.init({ cursor: null, trail: null, click: null, sound: false, hideNative: false });
+      const n = Object.values(CursorFX.list()).reduce((s, l) => s + l.length, 0);
+      post('ready ' + n + ' plugins, ' + innerWidth + 'x' + innerHeight + ' dpr ' + devicePixelRatio);
+    })();
+  </script>
+</body>
+</html>

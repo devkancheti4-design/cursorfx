@@ -92,6 +92,7 @@ Open a [request issue](../../issues/new?template=effect_request.yml) describing 
 
 ```js
 CursorFX.init(config)     // start; safe to call before DOM is ready
+                          // config.cursorScale (default 1) scales any cursor model around the pointer
 CursorFX.set(config)      // change any part of the config on the fly
 CursorFX.destroy()        // remove the canvas, listeners and audio
 CursorFX.list()           // { cursor: [...], trail: [...], click: [...] } with labels, icons, descriptions, defaults
@@ -155,6 +156,16 @@ CursorFX.set({ click: 'smiley' });
 Optional metadata: `credits: { requestedBy: 'u/name', builtBy: 'you' }` is shown on the plugin's card and returned by `CursorFX.list()`.
 
 Plugins live in `src/cursors`, `src/trails` and `src/clicks`. Run `npm run build` to rebundle `dist/cursorfx.js` and the extension zip.
+
+## Desktop app (macOS): the whole Mac, not just web pages
+
+`desktop/macos/` is a native menu bar app that puts the same effects over your entire screen: the desktop, Finder, every app. It draws a click-through, always-on-top overlay on each display, follows the system mouse, hides the arrow, and plays the sounds.
+
+- Download `CursorFX-macOS.zip` from the [Releases page](../../releases), unzip, and open `CursorFX.app`. It is not notarised, so the first time right-click it and choose Open.
+- A 🏎️ item appears in the menu bar with Cursor, Trail, Click effect, Cursor size (Small to Full), Sound, Hide system cursor, and Quit.
+- Build it yourself with `./desktop/macos/build.sh` (needs Xcode Command Line Tools). It embeds `dist/cursorfx.js`, so every plugin you add to the library shows up in the menu.
+
+Windows and Linux ports would follow the same shape: a transparent click-through window per screen with a web view, fed by the OS mouse position.
 
 ## Browser extension
 

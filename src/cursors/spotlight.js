@@ -3,6 +3,7 @@ CursorFX.registerCursor('spotlight', {
   label: 'Spotlight',
   icon: '🔦',
   description: 'Dims the whole page and lights only a soft circle around your pointer. Hold to widen the beam.',
+  noScale: true,
   defaults: { radius: 170, darkness: 0.82, softness: 0.5, color: '0,0,0' },
   create(opts, api) {
     const { state, util } = api;

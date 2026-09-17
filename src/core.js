@@ -234,6 +234,7 @@
   const config = {
     cursor: null, trail: null, click: null,
     sound: false, volume: 0.8, hideNative: true, zIndex: 2147483646, options: {},
+    cursorScale: 1,           // scales any cursor model around the pointer (0.5 = half size)
   };
   const active = { cursor: null, trail: null, click: null };
   let canvas = null, g = null, styleEl = null, rafId = 0, last = 0, bound = false, started = false;
@@ -408,7 +409,13 @@
       if (!i) continue;
       try {
         if (i.update) i.update(f, dt);
-        if (i.render) { g.save(); i.render(g); g.restore(); }
+        if (i.render) {
+          g.save();
+          const cs = k === 2 && !i.__def.noScale ? Number(config.cursorScale) || 1 : 1;
+          if (cs !== 1) { g.translate(state.x, state.y); g.scale(cs, cs); g.translate(-state.x, -state.y); }
+          i.render(g);
+          g.restore();
+        }
       } catch (err) {
         console.error('CursorFX plugin error in ' + i.__name, err);
         destroyInstance(k === 0 ? 'trail' : k === 1 ? 'click' : 'cursor');

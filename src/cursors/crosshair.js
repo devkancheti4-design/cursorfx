@@ -3,6 +3,7 @@ CursorFX.registerCursor('crosshair', {
   label: 'Crosshair',
   icon: '✚',
   description: 'A shooting reticle with full-width guide lines and live x/y coordinates. It blooms and kicks with recoil when you fire; pair it with the Gunshot click effect.',
+  noScale: true,
   defaults: { color: '#00e5ff', coords: true, dashed: true, recoil: true },
   create(opts, api) {
     const { state, util } = api;
