@@ -1614,11 +1614,11 @@ CursorFX.registerTrail('stars', {
 CursorFX.registerClick('animals', {
   label: 'Particle animals',
   icon: '🦊',
-  description: 'Every click bursts a cloud of particles that reassemble into a different animal. Move through it to push the particles aside.',
+  description: 'Every click bursts a cloud of particles that reassemble into a different animal. Move through it to push the particles aside. Set placement to "corner" to keep it out of the way of your content.',
   sound: true,
   defaults: {
     animals: ['🦊', '🐱', '🦋', '🐠', '🐰', '🦉', '🐶', '🐸', '🦁', '🐼', '🐘', '🦜', '🐢', '🦄'],
-    count: 0, size: 0.55, dissolveAfter: 8, repel: 90,
+    count: 0, size: 0.55, dissolveAfter: 8, repel: 90, placement: 'click', opacity: 1,
   },
   create(opts, api) {
     const { state, util, audio } = api;
@@ -1637,7 +1637,8 @@ CursorFX.registerClick('animals', {
     }
 
     function shape(emoji) {
-      const S = Math.round(clamp(Math.min(state.w, state.h) * opts.size, 120, 700));
+      const frac = opts.placement === 'corner' ? Math.min(opts.size, 0.32) : opts.size;
+      const S = Math.round(clamp(Math.min(state.w, state.h) * frac, 120, 700));
       const key = emoji + '@' + S;
       if (cache.has(key)) return cache.get(key);
       let s = util.samplePoints(emoji, S, 2);
@@ -1651,8 +1652,15 @@ CursorFX.registerClick('animals', {
       idx = (idx + 1) % opts.animals.length;
       const s = shape(opts.animals[idx]);
       if (!s.count) return;
-      const cx = clamp(x, s.halfW + 10, Math.max(s.halfW + 10, state.w - s.halfW - 10));
-      const cy = clamp(y, s.halfH + 10, Math.max(s.halfH + 10, state.h - s.halfH - 10));
+      let cx, cy;
+      if (opts.placement === 'corner') {
+        // Nearest corner to the click, tucked in with a margin, so the animal never sits on the content.
+        cx = x < state.w / 2 ? s.halfW + 24 : state.w - s.halfW - 24;
+        cy = y < state.h / 2 ? s.halfH + 24 : state.h - s.halfH - 24;
+      } else {
+        cx = clamp(x, s.halfW + 10, Math.max(s.halfW + 10, state.w - s.halfW - 10));
+        cy = clamp(y, s.halfH + 10, Math.max(s.halfH + 10, state.h - s.halfH - 10));
+      }
       const first = mode === 'off';
       const step = s.count / N;
       for (let i = 0; i < N; i++) {
@@ -1702,7 +1710,7 @@ CursorFX.registerClick('animals', {
       const breathe = mode === 'assemble' ? 1 + 0.12 * Math.sin(state.time * 2.2) : 1;
       for (let i = 0; i < N; i++) {
         if (alpha[i] <= 0.01) continue;
-        g.globalAlpha = alpha[i];
+        g.globalAlpha = alpha[i] * opts.opacity;
         g.fillStyle = cols[i];
         const r = sz[i] * breathe;
         g.beginPath(); g.moveTo(px[i] + r, py[i]); g.arc(px[i], py[i], r, 0, TAU); g.fill();

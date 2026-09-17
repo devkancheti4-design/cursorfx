@@ -55,7 +55,7 @@ Or download `dist/cursorfx.js` and serve it yourself. The studio page (`index.ht
 
 | name | | what it does | sound |
 | --- | --- | --- | --- |
-| `animals` | 🦊 | Particles explode and reassemble into a different animal each click. Move through it to push the particles aside. | whoosh |
+| `animals` | 🦊 | Particles explode and reassemble into a different animal each click. Move through it to push the particles aside. Optional: `placement: 'corner'` keeps it small and off your content, `opacity` makes it translucent, `dissolveAfter` controls how long it stays. | whoosh |
 | `gunshot` | 🎯 | Fires a shot: muzzle flash, sparks, smoke, an ejected casing and a cracked bullet hole that fades away after a few seconds. Hold to keep firing. Pairs with the `crosshair` cursor, which blooms and kicks with recoil. | bang |
 | `waves` | 🌊 | The page itself ripples: real content bends and refracts outward from the click (backdrop-filter displacement, Chromium; rings elsewhere). `style: 'jelly'` wobbles the whole page. | drip |
 | `ripple` | 〰️ | Concentric water rings drawn on top. | drip |
