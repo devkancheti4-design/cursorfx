@@ -95,7 +95,7 @@ struct PluginItem: Identifiable, Hashable {
 
 final class Model: ObservableObject {
     @Published var enabled = true { didSet { changed() } }
-    @Published var sound = true { didSet { changed() } }
+    @Published var sound = false { didSet { changed() } }
     @Published var scale = 0.5 { didSet { changed() } }
     @Published var cursor = "f1car" { didSet { changed() } }
     @Published var trail = "" { didSet { changed() } }
@@ -227,12 +227,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.cursor = c["cursor"] as? String ?? ""
             model.trail = c["trail"] as? String ?? ""
             model.click = c["click"] as? String ?? ""
-            model.sound = c["sound"] as? Bool ?? true
+            model.sound = c["sound"] as? Bool ?? false
             model.scale = (c["cursorScale"] as? NSNumber)?.doubleValue ?? 0.5
             model.enabled = c["enabled"] as? Bool ?? true
             model.fadeWhenTyping = c["fadeWhenTyping"] as? Bool ?? true
         }
         model.hideCursor = defaults.object(forKey: "hideCursor") == nil ? true : defaults.bool(forKey: "hideCursor")
+        // Settings version 2: sound effects are off unless switched on again in the widget.
+        if defaults.integer(forKey: "settingsVersion") < 2 { model.sound = false; defaults.set(2, forKey: "settingsVersion") }
         model.suppress = false
     }
 
