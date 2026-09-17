@@ -32,3 +32,10 @@ Tech: plain JavaScript, one transparent canvas overlay, zero dependencies, about
 Rules: keep it doable on a 2D canvas, no trademarked characters, and be specific ("koi fish that swim out of the click and circle away" beats "fish").
 
 MIT licensed. Roast the code if you like, I would rather hear it here.
+
+## Posted (17 Sep 2026)
+
+- r/SideProject (text post with the full body): https://www.reddit.com/r/SideProject/comments/1win820/
+- r/InternetIsBeautiful (link to the studio): https://redd.it/1winiay
+- r/coolgithubprojects (link to the repo): https://redd.it/1winj3b
+- r/javascript (link to the repo): https://redd.it/1winjx5
