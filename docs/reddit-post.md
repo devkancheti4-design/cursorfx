@@ -1,5 +1,7 @@
 # Reddit post
 
+Attach `docs/demo.gif` (or upload it as the post media) so the F1 car and the effects show in the feed.
+
 Suggested subreddits: r/webdev, r/javascript, r/SideProject, r/InternetIsBeautiful, r/web_design, r/coolgithubprojects. Post the demo link or a GIF as the main content and use the body below. Replace the two links before posting.
 
 ## Title options

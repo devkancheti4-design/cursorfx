@@ -4,6 +4,8 @@
 
 > 13 cursor models · 9 trails · 16 click effects · sound that is synthesised in the browser, no audio files
 
+![CursorFX demo: F1 car with particle animals, glow orb with fairy dust and butterflies, crosshair with gunshot, ghost with rainbow and fireworks](docs/demo.gif)
+
 [Live studio](https://devkancheti4-design.github.io/cursorfx/) · [Browser extension](#browser-extension) · [Write a plugin](#write-your-own-plugin)
 
 ## Quick start
