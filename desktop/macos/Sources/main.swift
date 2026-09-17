@@ -101,6 +101,7 @@ final class Model: ObservableObject {
     @Published var trail = "" { didSet { changed() } }
     @Published var click = "gunshot" { didSet { changed() } }
     @Published var hideCursor = true { didSet { changed() } }
+    @Published var fadeWhenTyping = true { didSet { changed() } }
     @Published var lists: [String: [PluginItem]] = [:]
     var suppress = false
     var onChange: (() -> Void)?
@@ -157,6 +158,7 @@ struct WidgetView: View {
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }.font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.secondary)
             }
+            Toggle("Fade while typing", isOn: $model.fadeWhenTyping).toggleStyle(.switch).font(.system(size: 12))
         }
         .padding(14)
         .frame(width: 330)
@@ -186,6 +188,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var timer: Timer?
     var lastDown = false
     var lastX = -1.0, lastY = -1.0
+    var lastMoveTime = Date.distantPast
+    var typingFaded = false
     let model = Model()
     let hider = CursorHider()
     let defaults = UserDefaults.standard
@@ -226,6 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.sound = c["sound"] as? Bool ?? true
             model.scale = (c["cursorScale"] as? NSNumber)?.doubleValue ?? 0.5
             model.enabled = c["enabled"] as? Bool ?? true
+            model.fadeWhenTyping = c["fadeWhenTyping"] as? Bool ?? true
         }
         model.hideCursor = defaults.object(forKey: "hideCursor") == nil ? true : defaults.bool(forKey: "hideCursor")
         model.suppress = false
@@ -237,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "trail": model.trail.isEmpty ? NSNull() : model.trail,
             "click": model.click.isEmpty ? NSNull() : model.click,
             "sound": model.sound, "cursorScale": model.scale, "enabled": model.enabled,
+            "fadeWhenTyping": model.fadeWhenTyping,
         ]
         let d = try? JSONSerialization.data(withJSONObject: c)
         return String(data: d ?? Data("{}".utf8), encoding: .utf8) ?? "{}"
@@ -284,9 +290,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let x = loc.x - f.minX, y = f.maxY - loc.y
         let down = (NSEvent.pressedMouseButtons & 1) != 0
         var js = ""
-        if x != lastX || y != lastY { js += "__native.move(\(x),\(y));"; lastX = x; lastY = y }
-        if down != lastDown { js += down ? "__native.down(\(x),\(y));" : "__native.up(\(x),\(y));"; lastDown = down }
+        let now = Date()
+        if x != lastX || y != lastY { js += "__native.move(\(x),\(y));"; lastX = x; lastY = y; lastMoveTime = now }
+        if down != lastDown { js += down ? "__native.down(\(x),\(y));" : "__native.up(\(x),\(y));"; lastDown = down; lastMoveTime = now }
         if !js.isEmpty { ov.send(js) }
+
+        // Fade the overlay while typing (a keystroke more recent than the last mouse movement), like the system arrow.
+        let sinceKey = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .keyDown)
+        let lastKeyTime = now.addingTimeInterval(-sinceKey)
+        let typing = model.fadeWhenTyping && sinceKey < 600 && lastKeyTime > lastMoveTime
+        if typing != typingFaded {
+            typingFaded = typing
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = typing ? 0.25 : 0.12
+                overlays.forEach { $0.window.animator().alphaValue = typing ? 0 : 1 }
+            }
+            log(typing ? "typing: overlay faded" : "mouse moved: overlay shown")
+        }
     }
 
     func buildStatusItem() {
@@ -316,6 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func apply() {
         defaults.set(configJSON(), forKey: "config")
+        if !model.fadeWhenTyping && typingFaded { typingFaded = false; overlays.forEach { $0.window.alphaValue = 1 } }
         overlays.forEach { ov in
             if model.enabled { ov.window.orderFrontRegardless() } else { ov.window.orderOut(nil) }
             ov.send("__native.set(\(configJSON()))")
