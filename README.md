@@ -6,6 +6,10 @@
 
 ![CursorFX demo: F1 car with particle animals, glow orb with fairy dust and butterflies, crosshair with gunshot, ghost with rainbow and fireworks](docs/demo.gif)
 
+It runs on any site. Here it is injected into a Google search with the crosshair and gunshot:
+
+![CursorFX gunshot effect on a Google search results page](docs/demo-google.gif)
+
 [Live studio](https://devkancheti4-design.github.io/cursorfx/) · [Browser extension](#browser-extension) · [Write a plugin](#write-your-own-plugin)
 
 ## Quick start
