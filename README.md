@@ -212,6 +212,7 @@ There is no build tooling to install. Plugins are plain scripts that register th
 ## Accessibility and performance
 
 - Respects `prefers-reduced-motion`: particle counts are halved and bursts softened.
+- Eases off to a low frame rate once the pointer has been still for a moment, and snaps back to full speed the instant anything moves. An overlay spends most of its life idle, and redrawing it costs the same whether or not anything is happening. Measured numbers for the two desktop apps are in [desktop/windows/README.md](desktop/windows/README.md#performance).
 - One overlay canvas with `pointer-events: none`, so the page underneath stays fully interactive.
 - Particles are pooled and drawn with cached sprites; the animals effect batches thousands of dots per frame.
 - Sound is synthesised with the Web Audio API and unlocked by the first user gesture, per browser policy.

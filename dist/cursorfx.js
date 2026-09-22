@@ -240,6 +240,13 @@
   const active = { cursor: null, trail: null, click: null };
   let canvas = null, g = null, styleEl = null, rafId = 0, last = 0, bound = false, started = false;
 
+  // Redrawing a full-screen overlay sixty times a second costs the same whether or not
+  // anything is happening. Once the pointer has been still for a moment, the loop eases
+  // off to a low rate and snaps back to full speed the instant anything moves.
+  const REST_AFTER = 1.2;     // seconds of stillness before easing off
+  const REST_FPS = 12;
+  let lastDraw = 0;
+
   function api(def, opts) {
     return { state, util, audio, config: opts, def, core: CursorFX };
   }
@@ -316,6 +323,7 @@
   }
 
   function setPointer(e) {
+    if (e.clientX !== state.x || e.clientY !== state.y) state.idle = 0;   // wake on the event, not on the next frame
     state.x = e.clientX;
     state.y = e.clientY;
     state.inside = true;
@@ -331,6 +339,7 @@
   function onMove(e) { setPointer(e); }
   function onDown(e) {
     setPointer(e);
+    state.idle = 0;
     state.down = true;
     state.downIgnored = !!(e.target && e.target.closest && e.target.closest('[data-cursorfx-ignore]'));
     audio.unlock();
@@ -380,10 +389,17 @@
   function frame(now) {
     rafId = global.requestAnimationFrame(frame);
     if (!last) { last = now; return; }
+    const resting = state.idle > REST_AFTER;
+    // Skipping the whole frame, rather than only the drawing, is what saves the work.
+    if (resting && now - lastDraw < 1000 / REST_FPS) return;
     let dt = (now - last) / 1000;
     last = now;
+    lastDraw = now;
     if (dt <= 0) return;
-    if (dt > 1 / 20) dt = 1 / 20;
+    // The cap stops a long gap from making everything jump; while resting the gap is
+    // expected, so the cap has to be loose enough to let a whole slow frame through.
+    const cap = resting ? 1 / 6 : 1 / 20;
+    if (dt > cap) dt = cap;
     const f = dt * 60;
     state.dt = dt;
     state.f = f;
@@ -428,6 +444,7 @@
     if (started) return;
     started = true;
     last = 0;
+    lastDraw = 0;
     rafId = global.requestAnimationFrame(frame);
   }
 

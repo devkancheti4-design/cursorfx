@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 const isWindows = process.platform === 'win32';
+
 const SETTINGS = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULTS = {
   enabled: true, cursor: 'f1car', trail: null, click: 'gunshot',
@@ -23,6 +24,7 @@ let poll = null;
 let lastPoint = { x: -1, y: -1 };
 let lastDown = false;
 let lastMoveAt = 0;
+let activeOverlay = null;
 let lastKeyAt = 0;
 let faded = false;
 let shownAt = 0;
@@ -61,6 +63,7 @@ function overlayConfig() {
 
 function createOverlays() {
   overlays.forEach((o) => o.win.destroy());
+  activeOverlay = null;
   overlays = screen.getAllDisplays().map((display) => {
     const { x, y, width, height } = display.bounds;
     const win = new BrowserWindow({
@@ -69,7 +72,10 @@ function createOverlays() {
       hasShadow: false, resizable: false, movable: false, minimizable: false,
       maximizable: false, fullscreenable: false, focusable: false,
       skipTaskbar: true, show: false, type: isWindows ? 'toolbar' : undefined,
-      webPreferences: { backgroundThrottling: false, contextIsolation: true },
+      webPreferences: {
+        backgroundThrottling: false, contextIsolation: true,
+        preload: path.join(__dirname, 'overlay-preload.js'),
+      },
     });
     win.setIgnoreMouseEvents(true, { forward: false });
     win.setAlwaysOnTop(true, 'screen-saver');
@@ -108,8 +114,9 @@ async function fetchLists(win) {
   }
 }
 
-function broadcast(js) {
-  overlays.forEach((o) => send(o.win, js));
+function post(win, message) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('cfx', message);
 }
 
 function applySettings() {
@@ -140,10 +147,10 @@ function startPolling() {
       return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
     }) || overlays[0];
     if (!target) return;
-    const x = p.x - target.display.bounds.x;
-    const y = p.y - target.display.bounds.y;
-    overlays.forEach((o) => { if (o !== target) send(o.win, '__native.leave()'); });
-    send(target.win, `__native.move(${x},${y})`);
+    // Only the display the pointer just left needs telling, and only once.
+    if (activeOverlay && activeOverlay !== target) post(activeOverlay.win, { t: 'l' });
+    activeOverlay = target;
+    post(target.win, { t: 'm', x: p.x - target.display.bounds.x, y: p.y - target.display.bounds.y });
     updateFade();
   }, 1000 / 60);
 }
@@ -162,9 +169,11 @@ function setButton(down) {
   lastMoveAt = Date.now();
   const target = currentOverlay();
   if (!target) return;
-  const x = lastPoint.x - target.display.bounds.x;
-  const y = lastPoint.y - target.display.bounds.y;
-  send(target.win, `__native.${down ? 'down' : 'up'}(${x},${y})`);
+  post(target.win, {
+    t: down ? 'd' : 'u',
+    x: lastPoint.x - target.display.bounds.x,
+    y: lastPoint.y - target.display.bounds.y,
+  });
 }
 
 function updateFade() {
@@ -344,6 +353,61 @@ ipcMain.on('resize', (_e, height) => {
   if (widget.isVisible()) positionWidget();
 });
 
+// ---- self test ----
+//
+// Drives the real overlay window with synthetic pointer input and reports what it drew.
+// Browsers pause their animation loop when a window is not on screen, so this has to run
+// against the live overlay rather than a headless page.  CURSORFX_SELFTEST=1 npm start
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function selfTest() {
+  const ov = overlays[0];
+  const probe = (js) => ov.win.webContents.executeJavaScript(js, true);
+  await probe(`window.__probe = {
+    frames: 0,
+    ink() {
+      const cv = document.querySelector('canvas[data-cursorfx]');
+      const g = cv.getContext('2d');
+      const d = g.getImageData(0, 0, cv.width, cv.height).data;
+      let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 10) n++;
+      return n;
+    },
+  };
+  (function count() { window.__probe.frames++; requestAnimationFrame(count); })();
+  'ready'`);
+
+  const frames = () => probe('window.__probe.frames');
+  const ink = () => probe('window.__probe.ink()');
+  const idle = () => probe('CursorFX.state.idle');
+
+  const f0 = await frames(); await sleep(1000);
+  const rafHz = (await frames()) - f0;
+
+  for (let i = 0; i < 25; i++) { post(ov.win, { t: 'm', x: 300 + i * 8, y: 300 }); await sleep(16); }
+  await sleep(100);
+  const movingInk = await ink();
+
+  await sleep(2200);                     // settle into the resting state
+  const restingIdle = await idle();
+  const restingInk = await ink();
+  const f1 = await frames(); await sleep(1000);
+  const restingHz = (await frames()) - f1;
+
+  post(ov.win, { t: 'm', x: 700, y: 500 }); await sleep(80);
+  const wokeInk = await ink();
+  const wokeIdle = await idle();
+
+  console.log(JSON.stringify({
+    rafHz, movingInk, restingIdle: +restingIdle.toFixed(2), restingInk, restingHz,
+    wokeInk, wokeIdle: +wokeIdle.toFixed(3),
+    drawsWhileMoving: movingInk > 0,
+    stillVisibleAtRest: restingInk > 0,
+    wakesUp: wokeInk > 0,
+  }, null, 2));
+  app.quit();
+}
+
 // ---- lifecycle ----
 
 if (!app.requestSingleInstanceLock()) {
@@ -361,6 +425,7 @@ if (!app.requestSingleInstanceLock()) {
     startWatcher();
     applyCursorVisibility();
     if (process.env.CURSORFX_SHOW_WIDGET) setTimeout(showWidget, 1500);
+    if (process.env.CURSORFX_SELFTEST) setTimeout(selfTest, 2500);
     screen.on('display-added', createOverlays);
     screen.on('display-removed', createOverlays);
     screen.on('display-metrics-changed', createOverlays);

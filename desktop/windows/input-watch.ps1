@@ -50,19 +50,27 @@ $lastTick = [uint32]0
 $lastX = -1
 $lastY = -1
 
+# Allocated once: this loop runs about sixty times a second for as long as the app is open,
+# so anything created inside it is garbage created sixty times a second.
+$point = New-Object CfxInput+POINT
+
 while ($true) {
     $down = ([CfxInput]::GetAsyncKeyState(0x01) -band 0x8000) -ne 0
-    $p = New-Object CfxInput+POINT
-    [void][CfxInput]::GetCursorPos([ref]$p)
+    [void][CfxInput]::GetCursorPos([ref]$point)
     [void][CfxInput]::GetLastInputInfo([ref]$lii)
+    $tick = $lii.dwTime
 
-    foreach ($e in (Get-CfxEvents -Down $down -LastDown $lastDown -Tick $lii.dwTime -LastTick $lastTick -X $p.X -Y $p.Y -LastX $lastX -LastY $lastY)) {
-        Write-Output $e
+    # Nothing can have happened unless the button changed or the input clock moved,
+    # so the idle path costs three calls and a comparison.
+    if (($down -ne $lastDown) -or ($tick -ne $lastTick)) {
+        foreach ($e in (Get-CfxEvents -Down $down -LastDown $lastDown -Tick $tick -LastTick $lastTick -X $point.X -Y $point.Y -LastX $lastX -LastY $lastY)) {
+            Write-Output $e
+        }
     }
 
     $lastDown = $down
-    $lastTick = $lii.dwTime
-    $lastX = $p.X
-    $lastY = $p.Y
+    $lastTick = $tick
+    $lastX = $point.X
+    $lastY = $point.Y
     Start-Sleep -Milliseconds 16
 }

@@ -28,6 +28,33 @@ npm run dist       # build CursorFX.exe into dist/
 
 `npm run bundle` copies `dist/cursorfx.js` from the repository root, so every plugin you add to the library appears in the panel with no other changes. Building the installer must happen on Windows: electron-builder needs Windows tooling for the portable and NSIS targets.
 
+## Performance
+
+Both apps were measured on the same Mac, running the same effects, with the pointer driven
+along an identical path so they saw identical work. The figure is percentage of one core,
+counting every process each app spawns, including its GPU and renderer helpers.
+
+| | macOS app | this app |
+|---|---|---|
+| Pointer moving, car cursor | 15.4 | 33.7 |
+| Pointer moving, car cursor and fire trail | 15.3 | 37.4 |
+| Idle, before the change below | 11.5 | 34.2 |
+| **Idle, now** | **7.3** | **12.5** |
+
+Redrawing a full-screen overlay costs the same whether or not anything is happening, and an
+overlay spends almost all of its life doing nothing. The shared engine now eases off to a low
+frame rate once the pointer has been still for a moment and snaps back to full speed the instant
+anything moves, which cut the idle cost of this app by nearly two thirds and brought the two
+apps much closer together. `CURSORFX_SELFTEST=1 npm start` drives the real overlay with
+synthetic input and reports that it still draws while moving, stays visible at rest, and wakes up.
+
+While the pointer is actually moving this app still costs roughly twice the Mac app. That gap is
+architectural: Chromium composites a full-screen transparent window across several processes,
+where the Mac app hands one layer to AppKit. Two things were measured and rejected rather than
+assumed. Turning off hardware acceleration made it five times worse, at 205 percent of a core.
+Forcing a device scale factor of 1 changed nothing, so the cost is compositing rather than the
+number of pixels being filled.
+
 ## How it works, and what is different from the Mac app
 
 | | Windows | macOS |

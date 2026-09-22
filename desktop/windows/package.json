@@ -21,10 +21,13 @@
     "files": [
       "main.js",
       "preload.js",
+      "overlay-preload.js",
       "overlay.html",
       "widget.html",
       "cursorfx.js",
-      "assets/**"
+      "assets/**",
+      "cursor-visibility.ps1",
+      "input-watch.ps1"
     ],
     "win": {
       "target": [

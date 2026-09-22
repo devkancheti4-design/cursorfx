@@ -24,6 +24,16 @@
         lists() { return JSON.stringify(CursorFX.list()); },
       };
       CursorFX.init({ cursor: null, trail: null, click: null, sound: false, hideNative: false });
+
+      // Pointer updates arrive as messages rather than as evaluated source.
+      if (window.__bridge) {
+        window.__bridge.onInput((m) => {
+          if (m.t === 'm') window.__native.move(m.x, m.y);
+          else if (m.t === 'd') window.__native.down(m.x, m.y);
+          else if (m.t === 'u') window.__native.up(m.x, m.y);
+          else if (m.t === 'l') window.__native.leave();
+        });
+      }
       window.__ready = CursorFX.version + ' ' + innerWidth + 'x' + innerHeight;
     })();
   </script>
