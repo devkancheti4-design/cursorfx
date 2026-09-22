@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Copied from the library build by `npm run bundle`; not a source file.
+cursorfx.js

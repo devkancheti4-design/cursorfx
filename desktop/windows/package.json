@@ -1,0 +1,42 @@
+{
+  "name": "cursorfx-desktop",
+  "version": "0.1.0",
+  "description": "CursorFX Desktop for Windows: custom cursors, trails and click effects over every app.",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "bundle": "node -e \"require('fs').copyFileSync('../../dist/cursorfx.js','cursorfx.js')\"",
+    "prestart": "npm run bundle",
+    "start": "electron .",
+    "predist": "npm run bundle",
+    "dist": "electron-builder --win portable nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.cursorfx.desktop",
+    "productName": "CursorFX",
+    "files": [
+      "main.js",
+      "preload.js",
+      "overlay.html",
+      "widget.html",
+      "cursorfx.js",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "CursorFX"
+    }
+  }
+}

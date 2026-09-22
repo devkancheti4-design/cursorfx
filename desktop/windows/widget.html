@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CursorFX</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 14px; width: 350px;
+      font: 13px/1.4 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+      color: #e9ecf5; background: rgba(24, 26, 34, .96);
+      border: 1px solid rgba(255, 255, 255, .1); border-radius: 12px;
+      user-select: none; -webkit-user-select: none; overflow: hidden;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+    .row-title { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #9aa3c0; margin: 0 0 5px; }
+    .strip { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+    .strip::-webkit-scrollbar { height: 4px; }
+    .strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 2px; }
+    .chip {
+      flex: 0 0 auto; width: 58px; height: 50px; border: 0; border-radius: 12px; cursor: default;
+      background: rgba(255, 255, 255, .08); color: inherit; font: inherit;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    }
+    .chip:hover { background: rgba(255, 255, 255, .15); }
+    .chip.on { background: #3b6ef5; color: #fff; }
+    .chip .ic { font-size: 19px; line-height: 1; }
+    .chip .lb { font-size: 9px; font-weight: 500; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    section { margin-bottom: 11px; }
+    .dim { opacity: .4; pointer-events: none; }
+    .slider { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+    .slider span { color: #9aa3c0; }
+    .slider .s { font-size: 11px; } .slider .l { font-size: 17px; }
+    input[type=range] { flex: 1; accent-color: #3b6ef5; }
+    .switches { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+    label.sw { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+    input[type=checkbox] { accent-color: #3b6ef5; width: 15px; height: 15px; }
+    .quit { margin-left: auto; background: none; border: 0; color: #9aa3c0; font: inherit; font-size: 11px; cursor: default; }
+    .quit:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CursorFX</h1>
+    <label class="sw"><input type="checkbox" id="enabled"></label>
+  </header>
+  <div id="layers">
+    <section><p class="row-title">Cursor</p><div class="strip" id="cursor"></div></section>
+    <section><p class="row-title">Trail</p><div class="strip" id="trail"></div></section>
+    <section><p class="row-title">Click</p><div class="strip" id="click"></div></section>
+    <div class="slider">
+      <span class="s">&#9650;</span>
+      <input type="range" id="scale" min="0.25" max="1.25" step="0.05">
+      <span class="l">&#9650;</span>
+    </div>
+  </div>
+  <div class="switches">
+    <label class="sw"><input type="checkbox" id="sound"> Sound</label>
+    <label class="sw"><input type="checkbox" id="fade"> Fade while typing</label>
+    <label class="sw"><input type="checkbox" id="login"> Open at login</label>
+    <button class="quit" id="quit">Quit</button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let state = null;
+
+    function chip(kind, item) {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      const name = item ? item.name : null;
+      if (state.settings[kind] === name) b.classList.add('on');
+      b.title = item ? item.description || item.label : 'Turn this layer off';
+      b.innerHTML = '<span class="ic"></span><span class="lb"></span>';
+      b.querySelector('.ic').textContent = item ? item.icon : '⊘';
+      b.querySelector('.lb').textContent = item ? item.label : 'Off';
+      b.addEventListener('click', () => apply({ [kind]: name }));
+      return b;
+    }
+
+    function render() {
+      const s = state.settings;
+      $('enabled').checked = !!s.enabled;
+      $('sound').checked = !!s.sound;
+      $('fade').checked = !!s.fadeWhenTyping;
+      $('login').checked = !!s.openAtLogin;
+      $('scale').value = s.cursorScale;
+      $('layers').classList.toggle('dim', !s.enabled);
+      for (const kind of ['cursor', 'trail', 'click']) {
+        const el = $(kind);
+        el.innerHTML = '';
+        el.appendChild(chip(kind, null));
+        (state.lists[kind] || []).forEach((item) => el.appendChild(chip(kind, item)));
+        const active = el.querySelector('.chip.on');
+        if (active) active.scrollIntoView({ block: 'nearest', inline: 'center' });
+      }
+    }
+
+    async function apply(patch) {
+      state = await window.cursorfx.set(patch);
+      render();
+    }
+
+    $('enabled').addEventListener('change', (e) => apply({ enabled: e.target.checked }));
+    $('sound').addEventListener('change', (e) => apply({ sound: e.target.checked }));
+    $('fade').addEventListener('change', (e) => apply({ fadeWhenTyping: e.target.checked }));
+    $('login').addEventListener('change', (e) => apply({ openAtLogin: e.target.checked }));
+    $('scale').addEventListener('input', (e) => apply({ cursorScale: Number(e.target.value) }));
+    $('quit').addEventListener('click', () => window.cursorfx.quit());
+    window.cursorfx.onState((s) => { state = s; render(); });
+
+    // The panel's height depends on the font and scaling in use, so it reports its
+    // rendered height and the window sizes itself to match.
+    function fit() {
+      const h = Math.ceil(document.documentElement.getBoundingClientRect().height);
+      if (h > 0) window.cursorfx.resize(h);
+    }
+
+    window.cursorfx.getState().then((s) => { state = s; render(); requestAnimationFrame(fit); });
+    window.addEventListener('resize', fit);
+  </script>
+</body>
+</html>

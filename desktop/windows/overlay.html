@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body { margin: 0; background: transparent; overflow: hidden; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <script src="cursorfx.js"></script>
+  <script>
+    (function () {
+      const ev = (type, x, y) => new PointerEvent(type, { clientX: x, clientY: y, bubbles: true, pointerType: 'mouse' });
+      window.__native = {
+        move(x, y) { window.dispatchEvent(ev('pointermove', x, y)); },
+        down(x, y) { window.dispatchEvent(ev('pointerdown', x, y)); },
+        up(x, y) { window.dispatchEvent(ev('pointerup', x, y)); },
+        leave() { CursorFX.state.inside = false; },
+        set(cfg) {
+          CursorFX.set(cfg);
+          if (cfg.sound) CursorFX.audio.unlock();
+          return 'ok';
+        },
+        lists() { return JSON.stringify(CursorFX.list()); },
+      };
+      CursorFX.init({ cursor: null, trail: null, click: null, sound: false, hideNative: false });
+      window.__ready = CursorFX.version + ' ' + innerWidth + 'x' + innerHeight;
+    })();
+  </script>
+</body>
+</html>
