@@ -58,6 +58,7 @@
   </div>
   <div class="switches">
     <label class="sw"><input type="checkbox" id="sound"> Sound</label>
+    <label class="sw" id="hideWrap"><input type="checkbox" id="hide"> Hide the real arrow</label>
     <label class="sw"><input type="checkbox" id="fade"> Fade while typing</label>
     <label class="sw"><input type="checkbox" id="login"> Open at login</label>
     <button class="quit" id="quit">Quit</button>
@@ -85,6 +86,12 @@
       $('enabled').checked = !!s.enabled;
       $('sound').checked = !!s.sound;
       $('fade').checked = !!s.fadeWhenTyping;
+      $('hide').checked = !!s.hideCursor;
+      // Hiding the pointer system-wide is a Windows call; elsewhere the switch is inert.
+      const onWindows = state.platform === 'win32';
+      $('hide').disabled = !onWindows;
+      $('hideWrap').title = onWindows ? 'Replace the Windows pointer while CursorFX is on' : 'Windows only';
+      $('hideWrap').style.opacity = onWindows ? '' : '.45';
       $('login').checked = !!s.openAtLogin;
       $('scale').value = s.cursorScale;
       $('layers').classList.toggle('dim', !s.enabled);
@@ -106,6 +113,7 @@
     $('enabled').addEventListener('change', (e) => apply({ enabled: e.target.checked }));
     $('sound').addEventListener('change', (e) => apply({ sound: e.target.checked }));
     $('fade').addEventListener('change', (e) => apply({ fadeWhenTyping: e.target.checked }));
+    $('hide').addEventListener('change', (e) => apply({ hideCursor: e.target.checked }));
     $('login').addEventListener('change', (e) => apply({ openAtLogin: e.target.checked }));
     $('scale').addEventListener('input', (e) => apply({ cursorScale: Number(e.target.value) }));
     $('quit').addEventListener('click', () => window.cursorfx.quit());

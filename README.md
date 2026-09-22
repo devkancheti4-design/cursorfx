@@ -175,7 +175,22 @@ Plugins live in `src/cursors`, `src/trails` and `src/clicks`. Run `npm run build
 - **Open at login** is a switch in the panel. It registers with Windows the usual way, so Settings, Apps, Startup can turn it off later.
 - Build it with `npm install` then `npm run dist` inside `desktop/windows`, on a Windows machine. `npm start` runs it from source anywhere.
 
-Hiding the real Windows arrow is not in this build: doing it system-wide is easy to leave stuck if the app exits badly, so the custom cursor draws over the arrow instead. Everything else matches the Mac app. Details and the design notes are in [desktop/windows/README.md](desktop/windows/README.md).
+Details and the design notes are in [desktop/windows/README.md](desktop/windows/README.md).
+
+### Where each feature lives
+
+| | A web page | Browser extension | macOS app | Windows app |
+|---|---|---|---|---|
+| 13 cursors, 9 trails, 16 click effects | yes | yes | yes | yes |
+| Cursor size | `cursorScale` | fixed | slider | slider |
+| Sound | `sound: true` | switch | switch | switch |
+| Turn it all off | remove the script | switch | master switch | master switch |
+| Hide the real arrow | `hideNative` | `hideNative` | switch | switch |
+| Fade while typing | no | no | switch | switch |
+| Open at login | not applicable | starts with the browser | switch | switch |
+| Covers | that one page | every page you visit | every app and the desktop | every app and the desktop |
+
+The two desktop apps have the same controls. They differ only in how they reach the operating system, which is what the table in [desktop/windows/README.md](desktop/windows/README.md) covers.
 
 ### Linux
 

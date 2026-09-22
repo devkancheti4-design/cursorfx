@@ -1,7 +1,7 @@
 // CursorFX Desktop for Windows: a click-through overlay on every display that renders the
 // CursorFX plugins over the whole system, driven by the global pointer position.
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain, nativeImage, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -9,7 +9,7 @@ const isWindows = process.platform === 'win32';
 const SETTINGS = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULTS = {
   enabled: true, cursor: 'f1car', trail: null, click: 'gunshot',
-  sound: false, cursorScale: 0.5, fadeWhenTyping: true,
+  sound: false, cursorScale: 0.5, fadeWhenTyping: true, hideCursor: false,
 };
 
 let settings = { ...DEFAULTS };
@@ -18,6 +18,7 @@ let widget = null;
 let tray = null;
 let lists = null;
 let watcher = null;
+let hider = null;
 let poll = null;
 let lastPoint = { x: -1, y: -1 };
 let lastDown = false;
@@ -119,6 +120,7 @@ function applySettings() {
     send(o.win, `__native.set(${cfg})`);
   });
   if (!settings.fadeWhenTyping && faded) { faded = false; overlays.forEach((o) => o.win.setOpacity(1)); }
+  applyCursorVisibility();
   if (widget && !widget.isDestroyed()) widget.webContents.send('state', publicState());
   updateTrayMenu();
 }
@@ -198,6 +200,55 @@ function startWatcher() {
   watcher.on('exit', (code) => log('watcher exited', code));
 }
 
+// ---- hiding the real Windows pointer ----
+//
+// Windows has no per-app way to hide the pointer everywhere, so the system cursors are
+// swapped for a blank one and put back on exit. Every path that can end the app restores
+// them: closing the helper's stdin, quitting, and a one-shot restore on the next start in
+// case the app was killed outright.
+
+function powershellPath() {
+  return process.env.SystemRoot
+    ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    : 'powershell.exe';
+}
+
+function cursorScriptArgs(extra) {
+  return ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', path.join(__dirname, 'cursor-visibility.ps1')].concat(extra || []);
+}
+
+function restoreCursorNow() {
+  if (!isWindows) return;
+  try {
+    execFileSync(powershellPath(), cursorScriptArgs(['-Restore']), { timeout: 8000, windowsHide: true });
+    log('system cursors restored');
+  } catch (e) {
+    log('could not restore the system cursor:', e.message);
+  }
+}
+
+function startHider() {
+  if (!isWindows || hider) return;
+  hider = spawn(powershellPath(), cursorScriptArgs(), { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  hider.stdout.on('data', (d) => log('cursor:', d.toString().trim()));
+  hider.stderr.on('data', (d) => log('cursor helper:', d.toString().trim().slice(0, 200)));
+  hider.on('exit', () => { hider = null; });
+}
+
+function stopHider() {
+  if (!hider) return;
+  const h = hider;
+  hider = null;
+  try { h.stdin.write('show\n'); h.stdin.end(); } catch (e) {}
+  setTimeout(() => { try { h.kill(); } catch (e) {} }, 1500);
+}
+
+function applyCursorVisibility() {
+  const hide = isWindows && settings.enabled && settings.hideCursor;
+  if (hide) startHider(); else stopHider();
+}
+
 // ---- tray and widget ----
 
 function trayIcon() {
@@ -217,6 +268,8 @@ function updateTrayMenu() {
     { type: 'separator' },
     { label: 'Enabled', type: 'checkbox', checked: settings.enabled, click: () => { settings.enabled = !settings.enabled; applySettings(); } },
     { label: 'Sound', type: 'checkbox', checked: settings.sound, click: () => { settings.sound = !settings.sound; applySettings(); } },
+    { label: 'Hide the real arrow', type: 'checkbox', checked: settings.hideCursor, enabled: isWindows, click: () => { settings.hideCursor = !settings.hideCursor; applySettings(); } },
+    { label: 'Fade while typing', type: 'checkbox', checked: settings.fadeWhenTyping, click: () => { settings.fadeWhenTyping = !settings.fadeWhenTyping; applySettings(); } },
     { label: 'Open at login', type: 'checkbox', checked: settings.openAtLogin, click: () => setLogin(!settings.openAtLogin) },
     { type: 'separator' },
     { label: 'Web studio', click: () => shell.openExternal('https://devkancheti4-design.github.io/cursorfx/') },
@@ -270,7 +323,7 @@ function setLogin(on) {
 }
 
 function publicState() {
-  return { settings, lists: lists || { cursor: [], trail: [], click: [] } };
+  return { settings, platform: process.platform, lists: lists || { cursor: [], trail: [], click: [] } };
 }
 
 ipcMain.handle('state', () => publicState());
@@ -301,10 +354,12 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     loadSettings();
+    restoreCursorNow();   // clears a hidden pointer left behind if a previous run was killed
     createOverlays();
     createTray();
     startPolling();
     startWatcher();
+    applyCursorVisibility();
     if (process.env.CURSORFX_SHOW_WIDGET) setTimeout(showWidget, 1500);
     screen.on('display-added', createOverlays);
     screen.on('display-removed', createOverlays);
@@ -314,6 +369,12 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', (e) => e.preventDefault());
   app.on('before-quit', () => {
     if (watcher) { try { watcher.kill(); } catch (e) {} }
+    stopHider();
+    restoreCursorNow();
     if (poll) clearInterval(poll);
   });
+  // A crash or a forced stop must not leave the pointer invisible.
+  process.on('exit', restoreCursorNow);
+  process.on('SIGTERM', () => app.quit());
+  process.on('SIGINT', () => app.quit());
 }
