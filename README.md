@@ -163,10 +163,25 @@ Plugins live in `src/cursors`, `src/trails` and `src/clicks`. Run `npm run build
 
 - Download `CursorFX-macOS.zip` from the [Releases page](../../releases), unzip, and drag `CursorFX.app` into Applications. It is not notarised, so the first time right-click it and choose Open.
 - Turn on **Open at login** in the widget, or the menu bar item is gone after every restart.
-- A 🏎️ item appears in the menu bar. Click it for a Control Center style widget: a master switch to turn the custom mouse off, swipeable icon strips for cursor, trail and click effect, a size slider, and switches for sound, hiding the arrow, fading the cursor while you type (it comes back when the mouse moves, like the system arrow), and opening at login.
-- Build it yourself with `./desktop/macos/build.sh` (add `install` to replace the copy in Applications and relaunch it) (needs Xcode Command Line Tools). It embeds `dist/cursorfx.js`, so every plugin you add to the library shows up in the menu.
+- A cursor glyph appears in the menu bar, left of your other items. Click it for a Control Center style widget: a master switch to turn the custom mouse off, swipeable icon strips for cursor, trail and click effect, a size slider, and switches for sound, hiding the arrow, fading the cursor while you type (it comes back when the mouse moves, like the system arrow), and opening at login.
+- Build it yourself with `./desktop/macos/build.sh`, which needs the Xcode Command Line Tools. Add `install` to replace the copy in Applications and relaunch it. It embeds `dist/cursorfx.js`, so every plugin you add to the library shows up in the menu.
 
-Windows and Linux ports would follow the same shape: a transparent click-through window per screen with a web view, fed by the OS mouse position.
+### Windows and Linux
+
+The system-wide overlay is macOS only today. On Windows and Linux, the browser extension below gives you every effect inside Chrome, Edge and Brave, and it loads with the browser on its own, so there is no login item to set up.
+
+A port would follow the same shape as the Mac app: a transparent click-through window per screen hosting a web view, fed by the OS mouse position.
+
+**Starting a Windows build at login.** Windows has no equivalent of the app's Open at login switch, so you register the app yourself. The Startup folder is the simplest way and needs no admin rights:
+
+1. Press <kbd>Win</kbd> + <kbd>R</kbd>, type `shell:startup`, and press Enter. The folder that opens runs everything inside it when you sign in.
+2. Right-click your `CursorFX.exe`, choose **Copy**, then right-click inside that folder and choose **Paste shortcut**. Copy the shortcut, not the executable.
+
+To undo it, delete the shortcut from the same folder. Windows also lists it under Settings, Apps, Startup, where a switch turns it off without deleting anything.
+
+If you need it to start with a delay or with administrator rights, use Task Scheduler instead: **Create Task**, a trigger of **At log on**, and an action that starts the executable. Set the delay on the trigger.
+
+On Linux, drop a `.desktop` file in `~/.config/autostart/` with an `Exec=` line pointing at the binary.
 
 ## Browser extension
 
