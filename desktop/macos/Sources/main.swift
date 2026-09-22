@@ -3,6 +3,7 @@
 import Cocoa
 import WebKit
 import SwiftUI
+import ServiceManagement
 
 // Private window-server calls that let a background app hide the system cursor (used by cursor-hiding utilities).
 @_silgen_name("_CGSDefaultConnection") func _CGSDefaultConnection() -> Int32
@@ -102,6 +103,18 @@ final class Model: ObservableObject {
     @Published var click = "gunshot" { didSet { changed() } }
     @Published var hideCursor = true { didSet { changed() } }
     @Published var fadeWhenTyping = true { didSet { changed() } }
+    @Published var openAtLogin = false {
+        didSet {
+            guard !suppress, openAtLogin != loginRegistered() else { return }
+            do {
+                if openAtLogin { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                log("open at login: \(openAtLogin)")
+            } catch {
+                log("open at login failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    func loginRegistered() -> Bool { SMAppService.mainApp.status == .enabled }
     @Published var lists: [String: [PluginItem]] = [:]
     var suppress = false
     var onChange: (() -> Void)?
@@ -158,7 +171,11 @@ struct WidgetView: View {
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }.font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.secondary)
             }
-            Toggle("Fade while typing", isOn: $model.fadeWhenTyping).toggleStyle(.switch).font(.system(size: 12))
+            HStack {
+                Toggle("Fade while typing", isOn: $model.fadeWhenTyping).toggleStyle(.switch).font(.system(size: 12))
+                Spacer()
+                Toggle("Open at login", isOn: $model.openAtLogin).toggleStyle(.switch).font(.system(size: 12))
+            }
         }
         .padding(14)
         .frame(width: 330)
@@ -235,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.hideCursor = defaults.object(forKey: "hideCursor") == nil ? true : defaults.bool(forKey: "hideCursor")
         // Settings version 2: sound effects are off unless switched on again in the widget.
         if defaults.integer(forKey: "settingsVersion") < 2 { model.sound = false; defaults.set(2, forKey: "settingsVersion") }
+        model.openAtLogin = model.loginRegistered()
         model.suppress = false
     }
 
@@ -313,9 +331,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🏎️"
-        statusItem.button?.target = self
-        statusItem.button?.action = #selector(togglePopover)
+        if let button = statusItem.button {
+            // A template SF Symbol reads clearly in both light and dark menu bars; the emoji did not.
+            if let img = NSImage(systemSymbolName: "cursorarrow.motionlines", accessibilityDescription: "CursorFX") {
+                img.isTemplate = true
+                button.image = img
+            } else {
+                button.title = "🏎️"
+            }
+            button.toolTip = "CursorFX"
+            button.target = self
+            button.action = #selector(togglePopover)
+        }
         popover = NSPopover()
         popover.behavior = .transient
         popover.contentSize = NSSize(width: 330, height: 400)

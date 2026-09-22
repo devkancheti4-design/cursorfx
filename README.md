@@ -161,9 +161,10 @@ Plugins live in `src/cursors`, `src/trails` and `src/clicks`. Run `npm run build
 
 `desktop/macos/` is a native menu bar app that puts the same effects over your entire screen: the desktop, Finder, every app. It draws a click-through, always-on-top overlay on each display, follows the system mouse, hides the arrow, and plays the sounds.
 
-- Download `CursorFX-macOS.zip` from the [Releases page](../../releases), unzip, and open `CursorFX.app`. It is not notarised, so the first time right-click it and choose Open.
-- A 🏎️ item appears in the menu bar. Click it for a Control Center style widget: a master switch to turn the custom mouse off, swipeable icon strips for cursor, trail and click effect, a size slider, and switches for sound, hiding the arrow, and fading the cursor while you type (it comes back when the mouse moves, like the system arrow).
-- Build it yourself with `./desktop/macos/build.sh` (needs Xcode Command Line Tools). It embeds `dist/cursorfx.js`, so every plugin you add to the library shows up in the menu.
+- Download `CursorFX-macOS.zip` from the [Releases page](../../releases), unzip, and drag `CursorFX.app` into Applications. It is not notarised, so the first time right-click it and choose Open.
+- Turn on **Open at login** in the widget, or the menu bar item is gone after every restart.
+- A 🏎️ item appears in the menu bar. Click it for a Control Center style widget: a master switch to turn the custom mouse off, swipeable icon strips for cursor, trail and click effect, a size slider, and switches for sound, hiding the arrow, fading the cursor while you type (it comes back when the mouse moves, like the system arrow), and opening at login.
+- Build it yourself with `./desktop/macos/build.sh` (add `install` to replace the copy in Applications and relaunch it) (needs Xcode Command Line Tools). It embeds `dist/cursorfx.js`, so every plugin you add to the library shows up in the menu.
 
 Windows and Linux ports would follow the same shape: a transparent click-through window per screen with a web view, fed by the OS mouse position.
 
