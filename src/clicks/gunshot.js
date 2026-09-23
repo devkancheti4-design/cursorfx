@@ -19,6 +19,7 @@ CursorFX.registerClick('gunshot', {
 
     function shoot(x, y) {
       sinceShot = 0;
+      state.shots = (state.shots || 0) + 1;   // lets a gun cursor kick on every shot, including held fire
       flashes.push({ x, y, life: 5, max: 5, rot: rand(0, TAU) });
       const n = state.reduceMotion ? 6 : 14;
       for (let i = 0; i < n; i++) {
@@ -46,7 +47,7 @@ CursorFX.registerClick('gunshot', {
       }
       holes.push({ x, y, r: rand(4.5, 7), cracks, life: opts.holdFor * 60 + 90, max: opts.holdFor * 60 + 90, seed: rand(0, TAU) });
       if (holes.length > 60) holes.shift();
-      if (opts.casings) casings.push({ x, y, vx: rand(2, 4.5), vy: rand(-5, -3), rot: rand(0, TAU), spin: rand(0.2, 0.5), life: 60, max: 60 });
+      if (opts.casings && !state.gunEjects) casings.push({ x, y, vx: rand(2, 4.5), vy: rand(-5, -3), rot: rand(0, TAU), spin: rand(0.2, 0.5), life: 60, max: 60 });
       bang();
       if (state.reduceMotion) return;
       if (sparks.length > 500) sparks.splice(0, sparks.length - 500);

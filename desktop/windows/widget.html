@@ -27,6 +27,9 @@
     .chip:hover { background: rgba(255, 255, 255, .15); }
     .chip.on { background: #3b6ef5; color: #fff; }
     .chip .ic { font-size: 19px; line-height: 1; }
+    .chip.sw { width: 52px; height: 46px; }
+    .chip .dot { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+    .chip.on .dot { box-shadow: 0 0 0 2px #fff; }
     .chip .lb { font-size: 9px; font-weight: 500; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     section { margin-bottom: 11px; }
     .dim { opacity: .4; pointer-events: none; }
@@ -48,6 +51,7 @@
   </header>
   <div id="layers">
     <section><p class="row-title">Cursor</p><div class="strip" id="cursor"></div></section>
+    <section id="skinSec" hidden><p class="row-title">Skin</p><div class="strip" id="skin"></div></section>
     <section><p class="row-title">Trail</p><div class="strip" id="trail"></div></section>
     <section><p class="row-title">Click</p><div class="strip" id="click"></div></section>
     <div class="slider">
@@ -60,7 +64,7 @@
     <label class="sw"><input type="checkbox" id="sound"> Sound</label>
     <label class="sw" id="hideWrap"><input type="checkbox" id="hide"> Hide the real arrow</label>
     <label class="sw"><input type="checkbox" id="fade"> Fade while typing</label>
-    <label class="sw"><input type="checkbox" id="login"> Open at login</label>
+    <label class="sw" id="loginWrap"><input type="checkbox" id="login"> Open at login</label>
     <button class="quit" id="quit">Quit</button>
   </div>
 
@@ -92,9 +96,13 @@
       $('hide').disabled = !onWindows;
       $('hideWrap').title = onWindows ? 'Replace the Windows pointer while CursorFX is on' : 'Windows only';
       $('hideWrap').style.opacity = onWindows ? '' : '.45';
+      $('login').disabled = !state.canLogin;
+      $('loginWrap').title = state.canLogin ? 'Start CursorFX when you sign in' : 'Available in the installed app';
+      $('loginWrap').style.opacity = state.canLogin ? '' : '.45';
       $('login').checked = !!s.openAtLogin;
       $('scale').value = s.cursorScale;
       $('layers').classList.toggle('dim', !s.enabled);
+      renderSkins();
       for (const kind of ['cursor', 'trail', 'click']) {
         const el = $(kind);
         el.innerHTML = '';
@@ -105,9 +113,32 @@
       }
     }
 
+    // Shown only while the selected cursor offers skins, such as the guns.
+    function renderSkins() {
+      const name = state.settings.cursor;
+      const item = (state.lists.cursor || []).find((c) => c.name === name);
+      const skins = item && item.choices && item.choices.skin;
+      $('skinSec').hidden = !skins;
+      if (!skins) return;
+      const chosen = (state.settings.options[name] || {}).skin || (item.defaults || {}).skin;
+      const el = $('skin');
+      el.innerHTML = '';
+      skins.forEach((sk) => {
+        const b = document.createElement('button');
+        b.className = 'chip sw' + (sk.value === chosen ? ' on' : '');
+        b.title = sk.label;
+        b.innerHTML = '<span class="dot"></span><span class="lb"></span>';
+        b.querySelector('.dot').style.background = sk.color;
+        b.querySelector('.lb').textContent = sk.label;
+        b.addEventListener('click', () => apply({ options: { [name]: { skin: sk.value } } }));
+        el.appendChild(b);
+      });
+    }
+
     async function apply(patch) {
       state = await window.cursorfx.set(patch);
       render();
+      requestAnimationFrame(fit);   // the skin row can appear or disappear
     }
 
     $('enabled').addEventListener('change', (e) => apply({ enabled: e.target.checked }));

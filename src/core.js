@@ -224,6 +224,7 @@
         name: d.name, label: d.label || d.name, icon: d.icon || '', description: d.description || '',
         sound: !!d.sound, keepNative: !!d.keepNative, defaults: Object.assign({}, d.defaults || {}),
         credits: d.credits ? Object.assign({}, d.credits) : null,
+        choices: d.choices ? JSON.parse(JSON.stringify(d.choices)) : null,
       }));
     });
     return kind ? out[kind] : out;
@@ -428,6 +429,7 @@
         if (i.render) {
           g.save();
           const cs = k === 2 && !i.__def.noScale ? Number(config.cursorScale) || 1 : 1;
+          if (k === 2) state.cursorScale = cs;
           if (cs !== 1) { g.translate(state.x, state.y); g.scale(cs, cs); g.translate(-state.x, -state.y); }
           i.render(g);
           g.restore();
@@ -477,6 +479,41 @@
     getConfig() { return JSON.parse(JSON.stringify(config)); },
     trigger(x, y) {
       if (active.click && active.click.trigger) active.click.trigger(x == null ? state.x : x, y == null ? state.y : y, null);
+    },
+    // Renders one plugin into a fresh canvas by stepping it frame by frame, with its own pointer
+    // state and no sound. It needs no animation loop, so it works in hidden tabs and tests.
+    //   o: { w, h, dpr, x, y, options, frames, step(state, frameIndex, instance) }
+    preview(kind, name, o) {
+      const def = registry[kind] && registry[kind].get(name);
+      if (!def) return null;
+      o = o || {};
+      const w = o.w || 160, h = o.h || 120, dpr = o.dpr || 2;
+      const c = document.createElement('canvas');
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      const pg = c.getContext('2d');
+      pg.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const px = o.x == null ? w / 2 : o.x, py = o.y == null ? h / 2 : o.y;
+      const ps = Object.assign({}, state, {
+        x: px, y: py, lastX: px, lastY: py, vx: 0, vy: 0, speed: 0, heading: 0,
+        down: false, downIgnored: false, seen: true, inside: true, hover: false,
+        w, h, dpr, time: 0, dt: 1 / 60, f: 1, idle: 0, meta: null, shots: 0, cursorScale: 1,
+      });
+      const silent = { ctx: null, noise: null, get() { return null; }, bus() { return null; }, enabled() { return false; },
+        unlock() {}, mute() {}, pop() {}, tone() {}, whoosh() {} };
+      const opts = Object.assign({}, def.defaults || {}, o.options || {});
+      const inst = def.create(opts, { state: ps, util, audio: silent, config: opts, def, core: CursorFX }) || {};
+      if (inst.onEnter) inst.onEnter();
+      const frames = o.frames == null ? 30 : o.frames;
+      for (let i = 0; i < frames; i++) {
+        ps.time += 1 / 60;
+        if (o.step) o.step(ps, i, inst);
+        if (inst.update) inst.update(1, 1 / 60);
+      }
+      pg.save();
+      if (inst.render) inst.render(pg);
+      pg.restore();
+      if (inst.destroy) inst.destroy();
+      return c;
     },
     destroy() {
       if (rafId) global.cancelAnimationFrame(rafId);

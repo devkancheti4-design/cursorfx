@@ -12,7 +12,8 @@ Download `CursorFX-Windows.zip` from the [Releases page](../../../releases), unz
 
 A cursor icon appears in the notification area, next to the clock. You may have to drag it out of the hidden-icons flyout the first time.
 
-- **Left-click the icon** for the panel: a master switch, swipeable strips of cursors, trails and click effects, a size slider, and switches for sound, hiding the real arrow, fading while you type, and opening at login.
+- **Left-click the icon** for the panel: a master switch, swipeable strips of cursors, trails and click effects, a size slider, and switches for sound, hiding the real arrow, fading while you type, and opening at login. Picking one of the guns adds a row of skins under the cursors.
+- **Open at login** is greyed out when you run from source with `npm start`, so a development run never registers a copy of Electron that disappears when `node_modules` is reinstalled.
 - **Right-click the icon** for the same controls as a plain menu.
 - **Open at login** registers the app with Windows the normal way, so you can also turn it off later under Settings, Apps, Startup.
 

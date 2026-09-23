@@ -6,11 +6,15 @@ const path = require('path');
 const fs = require('fs');
 
 const isWindows = process.platform === 'win32';
+// A development run would register node_modules/electron as a login item, which then breaks
+// the moment node_modules is reinstalled. Only the packaged app may add itself.
+const canLogin = app.isPackaged;
 
 const SETTINGS = path.join(app.getPath('userData'), 'settings.json');
 const DEFAULTS = {
   enabled: true, cursor: 'f1car', trail: null, click: 'gunshot',
   sound: false, cursorScale: 0.5, fadeWhenTyping: true, hideCursor: false,
+  options: {},          // per-plugin options, e.g. { 'gun-rifle': { skin: 'neon' } }
 };
 
 let settings = { ...DEFAULTS };
@@ -37,7 +41,8 @@ function loadSettings() {
   } catch (e) {
     settings = { ...DEFAULTS };
   }
-  settings.openAtLogin = app.getLoginItemSettings().openAtLogin;
+  if (!settings.options || typeof settings.options !== 'object') settings.options = {};
+  settings.openAtLogin = canLogin ? app.getLoginItemSettings().openAtLogin : false;
 }
 
 function saveSettings() {
@@ -57,6 +62,7 @@ function overlayConfig() {
     click: settings.enabled ? settings.click : null,
     sound: settings.sound,
     cursorScale: settings.cursorScale,
+    options: settings.options,
     hideNative: false,
   };
 }
@@ -279,7 +285,7 @@ function updateTrayMenu() {
     { label: 'Sound', type: 'checkbox', checked: settings.sound, click: () => { settings.sound = !settings.sound; applySettings(); } },
     { label: 'Hide the real arrow', type: 'checkbox', checked: settings.hideCursor, enabled: isWindows, click: () => { settings.hideCursor = !settings.hideCursor; applySettings(); } },
     { label: 'Fade while typing', type: 'checkbox', checked: settings.fadeWhenTyping, click: () => { settings.fadeWhenTyping = !settings.fadeWhenTyping; applySettings(); } },
-    { label: 'Open at login', type: 'checkbox', checked: settings.openAtLogin, click: () => setLogin(!settings.openAtLogin) },
+    { label: 'Open at login', type: 'checkbox', checked: settings.openAtLogin, enabled: canLogin, click: () => setLogin(!settings.openAtLogin) },
     { type: 'separator' },
     { label: 'Web studio', click: () => shell.openExternal('https://devkancheti4-design.github.io/cursorfx/') },
     { label: 'Quit CursorFX', click: () => app.quit() },
@@ -326,18 +332,26 @@ function positionWidget() {
 }
 
 function setLogin(on) {
+  if (!canLogin) { log('open at login is only available in the packaged app'); return; }
   app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [] });
   settings.openAtLogin = app.getLoginItemSettings().openAtLogin;
   applySettings();
 }
 
 function publicState() {
-  return { settings, platform: process.platform, lists: lists || { cursor: [], trail: [], click: [] } };
+  return { settings, platform: process.platform, canLogin, lists: lists || { cursor: [], trail: [], click: [] } };
 }
 
 ipcMain.handle('state', () => publicState());
 ipcMain.handle('set', (_e, patch) => {
   if ('openAtLogin' in patch) { setLogin(!!patch.openAtLogin); delete patch.openAtLogin; }
+  if (patch.options) {
+    // Merge per plugin, so choosing a skin for one gun keeps the skins picked for the others.
+    const merged = { ...settings.options };
+    for (const [name, o] of Object.entries(patch.options)) merged[name] = { ...(merged[name] || {}), ...o };
+    settings.options = merged;
+    delete patch.options;
+  }
   Object.assign(settings, patch);
   applySettings();
   return publicState();

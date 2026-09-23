@@ -2,7 +2,7 @@
 
 **Your cursor, but alive.** Mix and match a custom cursor model, a movement trail and a click effect, with optional synthesised sound, and drop it on any website with one script tag. Zero dependencies, plain JavaScript, one 2D canvas.
 
-> 13 cursor models · 9 trails · 16 click effects · sound that is synthesised in the browser, no audio files
+> 17 cursor models · 9 trails · 16 click effects · sound that is synthesised in the browser, no audio files
 
 ![CursorFX demo: F1 car with particle animals, glow orb with fairy dust and butterflies, crosshair with gunshot, ghost with rainbow and fireworks](docs/demo.gif)
 
@@ -42,6 +42,23 @@ Or download `dist/cursorfx.js` and serve it yourself. The studio page (`index.ht
 | `clock` | 🕰️ | A working analog clock follows the pointer. | |
 | `textflag` | 🏁 | Your words trail behind the pointer and wave like a flag. | |
 | `pixel` | 🕹️ | A chunky 8-bit arrow. | |
+
+#### The gun collection
+
+Four battle-royale style guns, each with six skins: gold, neon, crimson, camo, frost and carbon. The muzzle tip is the hotspot, so a shot lands exactly where it points, and a small outlined reticle marks the spot on light and dark pages alike. Every shot kicks the gun back and up around its grip, throws a muzzle flash and ejects a brass casing. Pair any of them with the `gunshot` click effect, which fires continuously while you hold the button and tells the gun each time it fires.
+
+| name | | model | default skin |
+| --- | --- | --- | --- |
+| `gun-rifle` | 🎯 | Assault rifle with a curved magazine | gold |
+| `gun-sniper` | 🔭 | Scoped long rifle with a thumbhole stock and a glinting lens | frost |
+| `gun-shotgun` | 💥 | Lever-action shotgun with a tube magazine | crimson |
+| `gun-pistol` | 🔫 | Heavy pistol with a serrated slide | neon |
+
+```js
+CursorFX.init({ cursor: 'gun-sniper', click: 'gunshot', options: { 'gun-sniper': { skin: 'neon', aim: 'right' } } });
+```
+
+The designs are original. They take the look of a battle-royale weapon skin, not any game's actual artwork.
 
 ### Trails (emitted while the pointer moves)
 
@@ -97,6 +114,8 @@ CursorFX.set(config)      // change any part of the config on the fly
 CursorFX.destroy()        // remove the canvas, listeners and audio
 CursorFX.list()           // { cursor: [...], trail: [...], click: [...] } with labels, icons, descriptions, defaults
 CursorFX.trigger(x, y)    // fire the click effect programmatically (defaults to the pointer position)
+CursorFX.preview(kind, name, { w, h, options, frames, step })
+                          // render one plugin to its own canvas, stepped by hand; works in hidden tabs
 CursorFX.getConfig()
 ```
 
@@ -153,7 +172,7 @@ CursorFX.set({ click: 'smiley' });
 - Frame values are in per-frame units at 60 fps; scale motion by `f` so it looks the same at 120 Hz.
 - Cursors use `update/render` plus optional `onEnter`, `onDown`, `onUp`. Trails use `update/render`. Click effects add `trigger(x, y, event)`.
 
-Optional metadata: `credits: { requestedBy: 'u/name', builtBy: 'you' }` is shown on the plugin's card and returned by `CursorFX.list()`.
+Optional metadata: `credits: { requestedBy: 'u/name', builtBy: 'you' }` is shown on the plugin's card and returned by `CursorFX.list()`. `choices: { skin: [{ value, label, color }] }` turns an option into a picker: a dropdown in the studio and a row of swatches in both desktop widgets.
 
 Plugins live in `src/cursors`, `src/trails` and `src/clicks`. Run `npm run build` to rebundle `dist/cursorfx.js` and the extension zip.
 
@@ -181,7 +200,8 @@ Details and the design notes are in [desktop/windows/README.md](desktop/windows/
 
 | | A web page | Browser extension | macOS app | Windows app |
 |---|---|---|---|---|
-| 13 cursors, 9 trails, 16 click effects | yes | yes | yes | yes |
+| 17 cursors, 9 trails, 16 click effects | yes | yes | yes | yes |
+| Gun skins | `options.skin` | fixed | skin row | skin row |
 | Cursor size | `cursorScale` | fixed | slider | slider |
 | Sound | `sound: true` | switch | switch | switch |
 | Turn it all off | remove the script | switch | master switch | master switch |

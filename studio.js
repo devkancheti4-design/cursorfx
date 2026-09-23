@@ -15,6 +15,7 @@
     { label: '🌸 Zen', config: { cursor: 'blob', trail: 'petals', click: 'notes', sound: true } },
     { label: '🚀 Space', config: { cursor: 'rocket', trail: 'stars', click: 'fireworks', sound: true } },
     { label: '🔦 Night', config: { cursor: 'spotlight', trail: null, click: 'shockwave', sound: false } },
+    { label: '🔫 Armory', config: { cursor: 'gun-rifle', trail: null, click: 'gunshot', sound: true } },
     { label: '💧 Liquid', config: { cursor: 'blob', trail: null, click: 'waves', sound: true } },
   ];
 
@@ -67,7 +68,7 @@
     $('#sound').checked = !!cfg.sound;
   }
 
-  function optionInput(name, key, value) {
+  function optionInput(name, key, value, choices) {
     const wrap = document.createElement('div');
     wrap.className = 'opt';
     const label = document.createElement('label');
@@ -75,6 +76,22 @@
     label.title = key;
     let input;
     const current = cfg.options[name] && cfg.options[name][key] !== undefined ? cfg.options[name][key] : value;
+    if (Array.isArray(choices) && choices.length) {
+      input = document.createElement('select');
+      choices.forEach((ch) => {
+        const o = document.createElement('option');
+        o.value = ch.value; o.textContent = ch.label || ch.value;
+        if (ch.value === current) o.selected = true;
+        input.appendChild(o);
+      });
+      input.addEventListener('change', () => {
+        cfg.options[name] = Object.assign({}, cfg.options[name] || {}, { [key]: input.value });
+        apply();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      return wrap;
+    }
     if (typeof value === 'boolean') {
       input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!current;
     } else if (typeof value === 'number') {
@@ -116,7 +133,10 @@
       title.className = 'opt-group';
       title.textContent = def.icon + ' ' + def.label;
       el.appendChild(title);
-      keys.forEach((k) => { const row = optionInput(name, k, def.defaults[k]); if (row) { el.appendChild(row); any = true; } });
+      keys.forEach((k) => {
+        const row = optionInput(name, k, def.defaults[k], def.choices && def.choices[k]);
+        if (row) { el.appendChild(row); any = true; }
+      });
     });
     if (!any) { const p = document.createElement('div'); p.className = 'opt-empty'; p.textContent = 'Nothing to tweak for this combination.'; el.appendChild(p); }
   }
